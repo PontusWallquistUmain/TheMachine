@@ -55,7 +55,7 @@ def process_song():
     while song_queue:
         song_request = song_queue.pop()
 
-        audio_path = f"/audio/input/{song_request.id}.mp3"
+        audio_path = f"./audio/input/{song_request.id}.mp3"
 
         # Process the song
         extract_stems(audio_path)
