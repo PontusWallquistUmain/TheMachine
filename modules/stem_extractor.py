@@ -11,7 +11,7 @@ def extract_stems(file_path):
     os.makedirs(output_dir, exist_ok=True)
 
     # Run Demucs to separate the stems
-    subprocess.run(['demucs', '--two-stems=vocals', '--overlap=0.1', '--mp3', '-o', output_dir, file_path], check=True)
+    subprocess.run(['demucs', '--two-stems=vocals', '--mp3', '-o', output_dir, file_path], check=True)
 
     # Construct paths to the separated stems
     base_name = os.path.splitext(os.path.basename(file_path))[0]
