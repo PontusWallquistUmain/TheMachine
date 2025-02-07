@@ -1,10 +1,10 @@
 from pydantic import BaseModel
 from typing import Optional
 import uuid
+from fastapi import UploadFile, File
 
 class SongRequest(BaseModel):
     id: Optional[uuid.UUID] = None
-    audio: bytes
     lyrics_type: Optional[str] = None
     lyrics_text: Optional[str] = None
 
