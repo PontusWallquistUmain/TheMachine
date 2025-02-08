@@ -6,23 +6,22 @@ from modules.transcriber import transcribe_lyrics
 from modules.stem_extractor import extract_stems
 from utils.file_handler import get_input_path, get_output_lyrics_path, get_output_intrumental_path, get_output_vocals_path
 from pathlib import Path
-import uuid
 import os
 import whisper
 import asyncio
+import uvicorn
 
 app = FastAPI()
 
 song_queue: List[SongRequest] = []
-song_cache: Dict[uuid.UUID, SongResponse] = {}
+song_cache: Dict[str, SongResponse] = {}
 
 def fill_song_cache():
     print("Filling song cache")
     base_directory = Path("./audio/output/htdemucs")
     for directory in base_directory.iterdir():
-        print(directory.name)
         if directory.is_dir():
-            id = uuid.UUID(directory.name)
+            id = directory.name
             song_cache[id] = SongResponse(
                 id=id,
                 lead_vocals=get_output_vocals_path(id),
@@ -50,11 +49,16 @@ def read_root():
 async def add_to_karaoke_queue(
     background_tasks: BackgroundTasks,
     response: Response,
-    id: uuid.UUID = None,
+    id: str = None,
     lyrics_type: str = None,
     lyrics_text: str = None,
     audio: UploadFile = File(...)
     ):
+
+    if id in song_cache:
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return {"message": "Song already in cache, request song from /cache/{id}"}
+
     song_request = SongRequest(audio=audio, lyrics_type=lyrics_type, lyrics_text=lyrics_text)
     song_request.set_id(id)
     song_queue.append(song_request)
@@ -74,8 +78,7 @@ async def add_to_karaoke_queue(
         return {"error": "Error adding song to queue"}
 
 @app.get("/cache/{id}")
-def get_karaoke_song_if_ready(id: uuid.UUID, response: Response):
-    print(song_cache)
+def get_karaoke_song_if_ready(id: str, response: Response):
     if id in song_cache:
         return song_cache[id]
     else:
@@ -86,7 +89,7 @@ def get_karaoke_song_if_ready(id: uuid.UUID, response: Response):
 def get_queue():
     return song_queue
 
-@app.get("/cache/", response_model=Dict[uuid.UUID, SongResponse])
+@app.get("/cache/")
 def get_cache():
     return song_cache
 
@@ -118,3 +121,6 @@ async def process_single_song(song_request: SongRequest):
 
     song_cache[song_request.id] = song_response
     print(f"Song {song_request.id} processed")
+
+if __name__ == "__main__":
+    uvicorn.run("app:app", port=8000, reload=False)

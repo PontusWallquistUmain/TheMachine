@@ -5,7 +5,7 @@ def get_output_directory(id):
     return f"./audio/output/htdemucs/{id}"
 
 def get_output_lyrics_path(id):
-    return f"{get_output_directory(id)}/lyrics.mp3"
+    return f"{get_output_directory(id)}/lyrics.lrc"
 
 def get_output_intrumental_path(id):
     return f"{get_output_directory(id)}/instrumental.mp3"

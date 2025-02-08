@@ -1,10 +1,9 @@
 from pydantic import BaseModel
 from typing import Optional
-import uuid
 from fastapi import UploadFile, File
 
 class SongRequest(BaseModel):
-    id: Optional[uuid.UUID] = None
+    id: Optional[str] = None
     lyrics_type: Optional[str] = None
     lyrics_text: Optional[str] = None
 
@@ -24,7 +23,7 @@ class SongRequest(BaseModel):
         }
 
 class SongResponse(BaseModel):
-    id: uuid.UUID = None
+    id: str = None
     lead_vocals: Optional[str] = None
     instrumental: Optional[str] = None
     lyrics: Optional[str] = None
