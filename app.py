@@ -5,6 +5,7 @@ from modules.transcriber import transcribe_lyrics
 from modules.stem_extractor import extract_stems
 import uuid
 import os
+import whisper
 
 # Start the FastAPI app
 app = FastAPI()
@@ -14,6 +15,9 @@ song_queue: List[SongRequest] = []
 
 # Initialize the cache to store the processed songs
 song_cache: Dict[uuid.UUID, SongResponse] = {}
+
+# Instantiate model
+model = whisper.load_model("medium.en")
 
 @app.get("/")
 def read_root():
@@ -68,8 +72,13 @@ def process_song():
         vocals_path = f"./audio/output/htdemucs/{song_request.id}/vocals.mp3"
 
         # Process the song
+        print("Extracting stems...")
         extract_stems(audio_path)
-        transcribe_lyrics(vocals_path, song_request.get_id())
+        print("Stems extracted!")
+
+        print("Transcribing lyrics...")
+        transcribe_lyrics(vocals_path, song_request.get_id(), model)
+        print("Lyrics transcribed!")
 
         # Save song to cache
         song_response = SongResponse(

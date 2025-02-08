@@ -1,10 +1,6 @@
-import whisper
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
-import time
 
-model_name = "medium.en"
-model = whisper.load_model(model_name)
     
 def format_timestamp(seconds):
     minutes = int(seconds // 60)
@@ -35,12 +31,6 @@ def write_to_lrc(transcription, file_path, uuid_str):
             text = segment['text'].strip()
             lrc_file.write(f"[{start_time}]{text}\n")
 
-def transcribe_lyrics(file_path, uuid_str):
+def transcribe_lyrics(file_path, uuid_str, model):
     result = model.transcribe(file_path, fp16=False)
     write_to_lrc(result, file_path, uuid_str)
-
-# if __name__ == "__main__":
-#     start = time.time()
-#     result = transcribe_lyrics("audio/output/htdemucs/audio/vocals.mp3")
-#     end = time.time()
-#     print(f"Model: {model_name}\nTime: {end-start}")
