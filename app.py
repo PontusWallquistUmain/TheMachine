@@ -35,7 +35,7 @@ async def shutdown_event():
 base_directory = Path("./audio/output/htdemucs")
 
 # Mount the directory containing your static files
-app.mount("/", StaticFiles(directory=base_directory), name="static")
+app.mount("/static/", StaticFiles(directory=base_directory), name="static")
 
 @app.get("/")
 def read_root():
@@ -95,7 +95,7 @@ async def process_single_song(song_request):
     vocals_path = get_output_vocals_path(song_request.id)
 
     print("Extracting stems...")
-    await asyncio.to_thread(extract_stems, audio_path)
+    await asyncio.to_thread(extract_stems, audio_path, song_request.get_id())
     print("Stems extracted!")
 
     print("Transcribing lyrics...")
