@@ -77,21 +77,21 @@ def process_song():
             audio_path = f"./audio/input/{song_request.id}.mp3"
             vocals_path = f"./audio/output/htdemucs/{song_request.id}/vocals.mp3"
 
-        # Process the song
-        print("Extracting stems...")
-        extract_stems(audio_path)
-        print("Stems extracted!")
+            # Process the song
+            print("Extracting stems...")
+            extract_stems(audio_path)
+            print("Stems extracted!")
 
-        print("Transcribing lyrics...")
-        transcribe_lyrics(vocals_path, song_request.get_id(), model)
-        print("Lyrics transcribed!")
+            print("Transcribing lyrics...")
+            transcribe_lyrics(vocals_path, song_request.get_id(), model)
+            print("Lyrics transcribed!")
 
-        # Save song to cache
-        song_response = SongResponse(
-            id=song_request.id,
-            lead_vocals="Processed lead vocals",
-            instrumental="Processed instrumental",
-            lyrics=song_request.lyrics_text
-        )
-        song_cache[song_request.id] = song_response
-        print(f"Song {song_request.id} processed")
+            # Save song to cache
+            song_response = SongResponse(
+                id=song_request.id,
+                lead_vocals="Processed lead vocals",
+                instrumental="Processed instrumental",
+                lyrics=song_request.lyrics_text
+            )
+            song_cache[song_request.id] = song_response
+            print(f"Song {song_request.id} processed")
