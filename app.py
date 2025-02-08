@@ -65,10 +65,11 @@ def process_song():
         song_request = song_queue.pop()
 
         audio_path = f"./audio/input/{song_request.id}.mp3"
+        vocals_path = f"./audio/output/htdemucs/{song_request.id}/vocals.mp3"
 
         # Process the song
         extract_stems(audio_path)
-        transcribe_lyrics(audio_path, song_request.get_id())
+        transcribe_lyrics(vocals_path, song_request.get_id())
 
         # Save song to cache
         song_response = SongResponse(
