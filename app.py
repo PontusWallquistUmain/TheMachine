@@ -5,7 +5,11 @@ from modules.transcriber import transcribe_lyrics
 from modules.stem_extractor import extract_stems
 import uuid
 import os
+<<<<<<< Updated upstream
 import whisper
+=======
+import threading
+>>>>>>> Stashed changes
 
 # Start the FastAPI app
 app = FastAPI()
@@ -16,8 +20,12 @@ song_queue: List[SongRequest] = []
 # Initialize the cache to store the processed songs
 song_cache: Dict[uuid.UUID, SongResponse] = {}
 
+<<<<<<< Updated upstream
 # Instantiate model
 model = whisper.load_model("medium.en")
+=======
+process_lock = threading.Lock()
+>>>>>>> Stashed changes
 
 @app.get("/")
 def read_root():
@@ -27,10 +35,12 @@ def read_root():
 async def add_to_karaoke_queue(
     response: Response,
     background_tasks: BackgroundTasks,
-    id: uuid.UUID,
+    id: uuid.UUID = None,
     lyrics_type: str = None,
     lyrics_text: str = None,
-    audio: UploadFile = File(...)):
+    audio: UploadFile = File(...)
+    ):
+
     song_request = SongRequest(audio=audio, lyrics_type=lyrics_type, lyrics_text=lyrics_text)
     song_request.set_id(id)
     song_queue.append(song_request)
@@ -65,12 +75,14 @@ def get_cache():
     return song_cache
 
 def process_song():
-    while song_queue:
-        song_request = song_queue.pop()
+    with process_lock:
+        while song_queue:
+            song_request = song_queue.pop()
 
-        audio_path = f"./audio/input/{song_request.id}.mp3"
-        vocals_path = f"./audio/output/htdemucs/{song_request.id}/vocals.mp3"
+            audio_path = f"./audio/input/{song_request.id}.mp3"
+            vocals_path = f"./audio/output/htdemucs/{song_request.id}/vocals.mp3"
 
+<<<<<<< Updated upstream
         # Process the song
         print("Extracting stems...")
         extract_stems(audio_path)
@@ -79,13 +91,18 @@ def process_song():
         print("Transcribing lyrics...")
         transcribe_lyrics(vocals_path, song_request.get_id(), model)
         print("Lyrics transcribed!")
+=======
+            # Process the song
+            extract_stems(audio_path)
+            transcribe_lyrics(vocals_path, song_request.get_id())
+>>>>>>> Stashed changes
 
-        # Save song to cache
-        song_response = SongResponse(
-            id=song_request.id,
-            lead_vocals="Processed lead vocals",
-            instrumental="Processed instrumental",
-            lyrics=song_request.lyrics_text
-        )
-        song_cache[song_request.id] = song_response
-        print(f"Song {song_request.id} processed")
+            # Save song to cache
+            song_response = SongResponse(
+                id=song_request.id,
+                lead_vocals="Processed lead vocals",
+                instrumental="Processed instrumental",
+                lyrics=song_request.lyrics_text
+            )
+            song_cache[song_request.id] = song_response
+            print(f"Song {song_request.id} processed")
