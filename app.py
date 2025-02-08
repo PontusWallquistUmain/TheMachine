@@ -3,6 +3,10 @@ from models import SongRequest, SongResponse
 from typing import Dict, List
 from modules.transcriber import transcribe_lyrics
 from modules.stem_extractor import extract_stems
+from utils.file_handler import get_input_path
+from utils.file_handler import get_output_lyrics_path
+from utils.file_handler import get_output_intrumental_path
+from utils.file_handler import get_output_vocals_path
 import uuid
 import os
 import whisper
@@ -45,7 +49,7 @@ async def add_to_karaoke_queue(
     song_request.set_id(id)
     song_queue.append(song_request)
 
-    audio_path = f"./audio/input/{id}.mp3"
+    audio_path = get_input_path(id)
     os.makedirs(os.path.dirname(audio_path), exist_ok=True)
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
@@ -83,8 +87,8 @@ def process_song():
         while song_queue and not shutdown_flag.is_set():
             song_request = song_queue.pop()
 
-            audio_path = f"./audio/input/{song_request.id}.mp3"
-            vocals_path = f"./audio/output/htdemucs/{song_request.id}/vocals.mp3"
+            audio_path = get_input_path(song_request.id)
+            vocals_path = get_output_vocals_path(song_request.id)
 
             # Process the song
             print("Extracting stems...")
@@ -98,10 +102,11 @@ def process_song():
             # Save song to cache
             song_response = SongResponse(
                 id=song_request.id,
-                lead_vocals="Processed lead vocals",
-                instrumental="Processed instrumental",
-                lyrics=song_request.lyrics_text
+                lead_vocals=get_output_vocals_path(song_request.id),
+                instrumental=get_output_intrumental_path(song_request.id),
+                lyrics=get_output_lyrics_path(song_request.id)
             )
+
             song_cache[song_request.id] = song_response
             print(f"Song {song_request.id} processed")
 
