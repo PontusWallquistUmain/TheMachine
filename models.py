@@ -24,7 +24,7 @@ class SongRequest(BaseModel):
         }
 
 class SongResponse(BaseModel):
-    id: uuid.UUID
+    id: uuid.UUID = None
     lead_vocals: Optional[str] = None
     instrumental: Optional[str] = None
     lyrics: Optional[str] = None

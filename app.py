@@ -15,6 +15,22 @@ app = FastAPI()
 
 song_queue: List[SongRequest] = []
 song_cache: Dict[uuid.UUID, SongResponse] = {}
+
+def fill_song_cache():
+    print("Filling song cache")
+    base_directory = Path("./audio/output/htdemucs")
+    for directory in base_directory.iterdir():
+        print(directory.name)
+        if directory.is_dir():
+            id = uuid.UUID(directory.name)
+            song_cache[id] = SongResponse(
+                id=id,
+                lead_vocals=get_output_vocals_path(id),
+                instrumental=get_output_intrumental_path(id),
+                lyrics=get_output_lyrics_path(id)
+            )
+
+fill_song_cache()
 model = whisper.load_model("medium.en")
 
 # Semaphore to ensure only one song is processed at a time
@@ -57,8 +73,9 @@ async def add_to_karaoke_queue(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"error": "Error adding song to queue"}
 
-@app.get("/cache/{id}", response_model=SongResponse)
+@app.get("/cache/{id}")
 def get_karaoke_song_if_ready(id: uuid.UUID, response: Response):
+    print(song_cache)
     if id in song_cache:
         return song_cache[id]
     else:
