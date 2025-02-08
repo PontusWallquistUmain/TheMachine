@@ -4,10 +4,7 @@ from models import SongRequest, SongResponse
 from typing import Dict, List
 from modules.transcriber import transcribe_lyrics
 from modules.stem_extractor import extract_stems
-from utils.file_handler import get_input_path
-from utils.file_handler import get_output_lyrics_path
-from utils.file_handler import get_output_intrumental_path
-from utils.file_handler import get_output_vocals_path
+from utils.file_handler import get_input_path, get_output_lyrics_path, get_output_intrumental_path, get_output_vocals_path
 from pathlib import Path
 import uuid
 import os
@@ -20,16 +17,8 @@ song_queue: List[SongRequest] = []
 song_cache: Dict[uuid.UUID, SongResponse] = {}
 model = whisper.load_model("medium.en")
 
-is_processing = False
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(process_songs())
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    global is_processing
-    is_processing = False
+# Semaphore to ensure only one song is processed at a time
+processing_semaphore = asyncio.Semaphore(1)
 
 # Base directory for your audio files
 base_directory = Path("./audio/output/htdemucs")
@@ -43,6 +32,7 @@ def read_root():
 
 @app.post("/queue/{id}")
 async def add_to_karaoke_queue(
+    background_tasks: BackgroundTasks,
     response: Response,
     id: uuid.UUID = None,
     lyrics_type: str = None,
@@ -57,6 +47,8 @@ async def add_to_karaoke_queue(
     os.makedirs(os.path.dirname(audio_path), exist_ok=True)
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
+
+    background_tasks.add_task(process_queue)
 
     if song_request in song_queue:
         response.status_code = status.HTTP_201_CREATED
@@ -81,16 +73,14 @@ def get_queue():
 def get_cache():
     return song_cache
 
-async def process_songs():
-    global is_processing
-    is_processing = True
-    while is_processing:
-        if song_queue:
-            song_request = song_queue.pop(0)
+async def process_queue():
+    async with processing_semaphore:
+        while song_queue:
+            song_request = song_queue[0]  # Get the first song in the queue
             await process_single_song(song_request)
-        await asyncio.sleep(1)  # Wait a bit before checking the queue again
+            song_queue.pop(0)  # Remove the processed song from the queue
 
-async def process_single_song(song_request):
+async def process_single_song(song_request: SongRequest):
     audio_path = get_input_path(song_request.id)
     vocals_path = get_output_vocals_path(song_request.id)
 
