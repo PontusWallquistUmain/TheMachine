@@ -1,9 +1,14 @@
 from fastapi import FastAPI, BackgroundTasks, UploadFile, File, Response, status
+from fastapi.staticfiles import StaticFiles
 from models import SongRequest, SongResponse
 from typing import Dict, List
 from modules.transcriber import transcribe_lyrics
 from modules.stem_extractor import extract_stems
-from utils.file_handler import get_input_path, get_output_lyrics_path, get_output_intrumental_path, get_output_vocals_path
+from utils.file_handler import get_input_path
+from utils.file_handler import get_output_lyrics_path
+from utils.file_handler import get_output_intrumental_path
+from utils.file_handler import get_output_vocals_path
+from pathlib import Path
 import uuid
 import os
 import whisper
@@ -25,6 +30,12 @@ async def startup_event():
 async def shutdown_event():
     global is_processing
     is_processing = False
+
+# Base directory for your audio files
+base_directory = Path("./audio/output/htdemucs")
+
+# Mount the directory containing your static files
+app.mount("/", StaticFiles(directory=base_directory), name="static")
 
 @app.get("/")
 def read_root():
