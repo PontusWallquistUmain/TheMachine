@@ -9,8 +9,8 @@ def format_timestamp(seconds):
     seconds = seconds % 60
     return f"{minutes:02}:{seconds:05.2f}"
 
-def write_to_lrc(transcription, file_path):
-    output_path = file_path[:file_path.rfind('/')] + ".lrc"
+def write_to_lrc(transcription, file_path, uuid_str):
+    output_path = file_path[:file_path.rfind('/')] + f"/{uuid_str}.lrc"
 
     with open(output_path, "w", encoding="utf-8") as lrc_file:
         for segment in transcription['segments']:

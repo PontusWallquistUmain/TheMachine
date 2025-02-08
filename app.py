@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, BackgroundTasks, UploadFile, File, Response, status
 from models import SongRequest, SongResponse
 from typing import Dict, List
 from modules.transcriber import transcribe_lyrics
@@ -20,7 +20,13 @@ def read_root():
     return {"message": "The Machine"}
 
 @app.post("/queue/{id}")
-async def add_to_karaoke_queue(background_tasks: BackgroundTasks, id: uuid.UUID, lyrics_type: str = None, lyrics_text: str = None, audio: UploadFile = File(...)):
+async def add_to_karaoke_queue(
+    response: Response,
+    background_tasks: BackgroundTasks,
+    id: uuid.UUID,
+    lyrics_type: str = None,
+    lyrics_text: str = None,
+    audio: UploadFile = File(...)):
     song_request = SongRequest(audio=audio, lyrics_type=lyrics_type, lyrics_text=lyrics_text)
     song_request.set_id(id)
     song_queue.append(song_request)
@@ -32,15 +38,18 @@ async def add_to_karaoke_queue(background_tasks: BackgroundTasks, id: uuid.UUID,
 
     background_tasks.add_task(process_song)
     if song_request in song_queue:
+        response.status_code = status.HTTP_201_CREATED
         return {"message": "Song added to queue"}
     else:
+        response.status_code = status.HTTP_400_BAD_REQUEST
         return {"error": "Error adding song to queue"}
 
 @app.get("/cache/{id}", response_model=SongResponse)
-def get_karaoke_song_if_ready(id: uuid.UUID):
+def get_karaoke_song_if_ready(id: uuid.UUID, response: Response):
     if id in song_cache:
         return song_cache[id]
     else:
+        response.status_code = status.HTTP_404_NOT_FOUND
         return {"message": "Song not ready"}
 
 @app.get("/queue/", response_model=List[SongRequest])
@@ -59,7 +68,7 @@ def process_song():
 
         # Process the song
         extract_stems(audio_path)
-        transcribe_lyrics(audio_path)
+        transcribe_lyrics(audio_path, song_request.get_id())
 
         # Save song to cache
         song_response = SongResponse(

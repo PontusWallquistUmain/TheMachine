@@ -11,6 +11,9 @@ class SongRequest(BaseModel):
     def set_id(self, id):
         if self.id is None:
             self.id = id
+    
+    def get_id(self):
+        return str(self.id)
 
     def to_dict(self):
         return {
