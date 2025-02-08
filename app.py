@@ -7,6 +7,8 @@ import uuid
 import os
 import whisper
 import threading
+import signal
+import sys
 
 # Start the FastAPI app
 app = FastAPI()
@@ -21,6 +23,9 @@ song_cache: Dict[uuid.UUID, SongResponse] = {}
 model = whisper.load_model("medium.en")
 
 process_lock = threading.Lock()
+shutdown_flag = threading.Event()
+
+background_threads = []
 
 @app.get("/")
 def read_root():
@@ -45,7 +50,11 @@ async def add_to_karaoke_queue(
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
 
-    background_tasks.add_task(process_song)
+    thread = threading.Thread(target=process_song)
+    thread.start()
+    background_threads.append(thread)
+
+
     if song_request in song_queue:
         response.status_code = status.HTTP_201_CREATED
         return {"message": "Song added to queue"}
@@ -71,7 +80,7 @@ def get_cache():
 
 def process_song():
     with process_lock:
-        while song_queue:
+        while song_queue and not shutdown_flag.is_set():
             song_request = song_queue.pop()
 
             audio_path = f"./audio/input/{song_request.id}.mp3"
@@ -95,3 +104,17 @@ def process_song():
             )
             song_cache[song_request.id] = song_response
             print(f"Song {song_request.id} processed")
+
+def cleanup():
+    print("Cleaning up resources...")
+    shutdown_flag.set()
+    # Wait for all background tasks to complete
+    for thread in background_threads:
+        thread.join()
+    sys.exit(0)
+
+def signal_handler(sig, frame):
+    cleanup()
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
