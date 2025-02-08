@@ -3,33 +3,28 @@ from models import SongRequest, SongResponse
 from typing import Dict, List
 from modules.transcriber import transcribe_lyrics
 from modules.stem_extractor import extract_stems
-from utils.file_handler import get_input_path
-from utils.file_handler import get_output_lyrics_path
-from utils.file_handler import get_output_intrumental_path
-from utils.file_handler import get_output_vocals_path
+from utils.file_handler import get_input_path, get_output_lyrics_path, get_output_intrumental_path, get_output_vocals_path
 import uuid
 import os
 import whisper
-import threading
-import signal
-import sys
+import asyncio
 
-# Start the FastAPI app
 app = FastAPI()
 
-# Create a queue for storing the songs to be processed
 song_queue: List[SongRequest] = []
-
-# Initialize the cache to store the processed songs
 song_cache: Dict[uuid.UUID, SongResponse] = {}
-
-# Instantiate model
 model = whisper.load_model("medium.en")
 
-process_lock = threading.Lock()
-shutdown_flag = threading.Event()
+is_processing = False
 
-background_threads = []
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(process_songs())
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global is_processing
+    is_processing = False
 
 @app.get("/")
 def read_root():
@@ -38,13 +33,11 @@ def read_root():
 @app.post("/queue/{id}")
 async def add_to_karaoke_queue(
     response: Response,
-    background_tasks: BackgroundTasks,
     id: uuid.UUID = None,
     lyrics_type: str = None,
     lyrics_text: str = None,
     audio: UploadFile = File(...)
     ):
-
     song_request = SongRequest(audio=audio, lyrics_type=lyrics_type, lyrics_text=lyrics_text)
     song_request.set_id(id)
     song_queue.append(song_request)
@@ -53,11 +46,6 @@ async def add_to_karaoke_queue(
     os.makedirs(os.path.dirname(audio_path), exist_ok=True)
     with open(audio_path, "wb") as f:
         f.write(await audio.read())
-
-    thread = threading.Thread(target=process_song)
-    thread.start()
-    background_threads.append(thread)
-
 
     if song_request in song_queue:
         response.status_code = status.HTTP_201_CREATED
@@ -82,44 +70,33 @@ def get_queue():
 def get_cache():
     return song_cache
 
-def process_song():
-    with process_lock:
-        while song_queue and not shutdown_flag.is_set():
-            song_request = song_queue.pop()
+async def process_songs():
+    global is_processing
+    is_processing = True
+    while is_processing:
+        if song_queue:
+            song_request = song_queue.pop(0)
+            await process_single_song(song_request)
+        await asyncio.sleep(1)  # Wait a bit before checking the queue again
 
-            audio_path = get_input_path(song_request.id)
-            vocals_path = get_output_vocals_path(song_request.id)
+async def process_single_song(song_request):
+    audio_path = get_input_path(song_request.id)
+    vocals_path = get_output_vocals_path(song_request.id)
 
-            # Process the song
-            print("Extracting stems...")
-            extract_stems(audio_path)
-            print("Stems extracted!")
+    print("Extracting stems...")
+    await asyncio.to_thread(extract_stems, audio_path)
+    print("Stems extracted!")
 
-            print("Transcribing lyrics...")
-            transcribe_lyrics(vocals_path, song_request.get_id(), model)
-            print("Lyrics transcribed!")
+    print("Transcribing lyrics...")
+    await asyncio.to_thread(transcribe_lyrics, vocals_path, song_request.get_id(), model)
+    print("Lyrics transcribed!")
 
-            # Save song to cache
-            song_response = SongResponse(
-                id=song_request.id,
-                lead_vocals=get_output_vocals_path(song_request.id),
-                instrumental=get_output_intrumental_path(song_request.id),
-                lyrics=get_output_lyrics_path(song_request.id)
-            )
+    song_response = SongResponse(
+        id=song_request.id,
+        lead_vocals=get_output_vocals_path(song_request.id),
+        instrumental=get_output_intrumental_path(song_request.id),
+        lyrics=get_output_lyrics_path(song_request.id)
+    )
 
-            song_cache[song_request.id] = song_response
-            print(f"Song {song_request.id} processed")
-
-def cleanup():
-    print("Cleaning up resources...")
-    shutdown_flag.set()
-    # Wait for all background tasks to complete
-    for thread in background_threads:
-        thread.join()
-    sys.exit(0)
-
-def signal_handler(sig, frame):
-    cleanup()
-
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
+    song_cache[song_request.id] = song_response
+    print(f"Song {song_request.id} processed")
